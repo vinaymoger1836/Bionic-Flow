@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { GenerationSettings, LLMProvider } from '../types/report';
-import { X, Key, Cpu, ShieldCheck, Sparkles, Check, Zap, Server } from 'lucide-react';
+import { X, Key, Cpu, ShieldCheck, Sparkles, Check, Zap, Server, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: GenerationSettings;
@@ -9,11 +9,16 @@ interface SettingsModalProps {
   onSave: (newSettings: GenerationSettings) => void;
 }
 
-const GROQ_MODELS = [
-  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Recommended — Ultra-Fast & Precise)' },
-  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Sub-150ms Latency)' },
-  { id: 'deepseek-r1-distill-llama-70b', name: 'DeepSeek R1 Distill Llama 70B (Clinical Reasoning)' },
-  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B (32k context)' },
+const DEFAULT_GROQ_MODELS = [
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B Versatile (Recommended)' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B Instant (Ultra-Fast < 150ms)' },
+  { id: 'llama-3.2-11b-vision-preview', name: 'Llama 3.2 11B Vision' },
+  { id: 'llama-3.2-3b-preview', name: 'Llama 3.2 3B Preview' },
+  { id: 'llama-3.2-1b-preview', name: 'Llama 3.2 1B Preview' },
+  { id: 'llama3-70b-8192', name: 'Llama 3 70B (8k context)' },
+  { id: 'llama3-8b-8192', name: 'Llama 3 8B (8k context)' },
+  { id: 'gemma2-9b-it', name: 'Gemma 2 9B IT' },
+  { id: 'qwen-2.5-32b', name: 'Qwen 2.5 32B' },
 ];
 
 const OPENAI_MODELS = [
@@ -32,12 +37,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [modelName, setModelName] = useState(settings.modelName || 'llama-3.3-70b-versatile');
   const [customEndpoint, setCustomEndpoint] = useState(settings.customEndpoint || 'http://localhost:11434/v1/chat/completions');
+  
+  const [fetchedModels, setFetchedModels] = useState<{ id: string; name: string }[]>([]);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
   if (!isOpen) return null;
 
   const handleProviderChange = (newProv: LLMProvider) => {
     setProvider(newProv);
+    setFetchedModels([]);
+    setFetchError(null);
     if (newProv === 'groq') {
       setModelName('llama-3.3-70b-versatile');
     } else if (newProv === 'openai') {
@@ -47,12 +58,67 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const handleFetchLiveModels = async () => {
+    if (!apiKey.trim()) {
+      setFetchError('Please enter your API Key first to fetch available models.');
+      return;
+    }
+
+    setIsFetchingModels(true);
+    setFetchError(null);
+
+    try {
+      let url = 'https://api.groq.com/openai/v1/models';
+      if (provider === 'openai') {
+        url = 'https://api.openai.com/v1/models';
+      } else if (provider === 'custom') {
+        url = customEndpoint.replace('/chat/completions', '/models');
+      }
+
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`API returned ${res.status}: ${text}`);
+      }
+
+      const json = await res.json();
+      const list: any[] = json.data || [];
+
+      // Filter out non-chat / whisper models
+      const chatModels = list
+        .filter((m: any) => !m.id.includes('whisper') && !m.id.includes('tts') && !m.id.includes('embed'))
+        .map((m: any) => ({
+          id: m.id,
+          name: `${m.id} ${m.owned_by ? `(${m.owned_by})` : ''}`,
+        }));
+
+      if (chatModels.length > 0) {
+        setFetchedModels(chatModels);
+        if (!chatModels.some((m) => m.id === modelName)) {
+          setModelName(chatModels[0].id);
+        }
+      } else {
+        setFetchError('No chat models found on this account.');
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch models:', err);
+      setFetchError(err.message || 'Failed to connect to API.');
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
   const handleSave = () => {
     onSave({
       mode,
       provider,
       apiKey: apiKey.trim(),
-      modelName,
+      modelName: modelName.trim(),
       customEndpoint: customEndpoint.trim(),
     });
     setSavedNotice(true);
@@ -62,10 +128,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }, 800);
   };
 
+  const activeModelOptions =
+    fetchedModels.length > 0
+      ? fetchedModels
+      : provider === 'groq'
+      ? DEFAULT_GROQ_MODELS
+      : OPENAI_MODELS;
+
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-xl shadow-2xl overflow-hidden">
-        {/* Modal Header */}
+        {/* Header */}
         <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div className="flex items-center space-x-2">
             <Cpu className="w-4 h-4 text-cyan-400" />
@@ -79,7 +152,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Form Body */}
+        {/* Body */}
         <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           {/* Mode Selection */}
           <div>
@@ -177,18 +250,61 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Model selection */}
+              {/* API Key */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Model Selection
+                <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                  <span className="flex items-center space-x-1">
+                    <Key className="w-3 h-3 text-cyan-400" />
+                    <span>
+                      {provider === 'groq'
+                        ? 'Groq API Key (gsk_...)'
+                        : provider === 'openai'
+                        ? 'OpenAI API Key (sk-...)'
+                        : 'API Key (Optional for Local Ollama)'}
+                    </span>
+                  </span>
+                  {provider !== 'custom' && (
+                    <button
+                      type="button"
+                      onClick={handleFetchLiveModels}
+                      disabled={isFetchingModels || !apiKey.trim()}
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center space-x-1 disabled:opacity-40 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${isFetchingModels ? 'animate-spin' : ''}`} />
+                      <span>{isFetchingModels ? 'Fetching...' : 'Auto-Detect Models'}</span>
+                    </button>
+                  )}
                 </label>
-                {provider === 'groq' && (
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={provider === 'groq' ? 'gsk_...' : 'sk-...'}
+                  className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-2 font-mono focus:outline-none focus:border-cyan-500"
+                />
+                {fetchError && (
+                  <div className="flex items-center space-x-1 text-[11px] text-rose-400 mt-1">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{fetchError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Model Selection & Custom Model Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Model Selection {fetchedModels.length > 0 && `(${fetchedModels.length} detected)`}
+                  </label>
+                </div>
+
+                {provider !== 'custom' && (
                   <select
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
                     className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-2 focus:outline-none focus:border-cyan-500"
                   >
-                    {GROQ_MODELS.map((m) => (
+                    {activeModelOptions.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
@@ -196,29 +312,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </select>
                 )}
 
-                {provider === 'openai' && (
-                  <select
-                    value={modelName}
-                    onChange={(e) => setModelName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-2 focus:outline-none focus:border-cyan-500"
-                  >
-                    {OPENAI_MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {provider === 'custom' && (
+                {/* Direct text input for model ID */}
+                <div>
+                  <label className="block text-[11px] text-slate-400 mb-1">
+                    Or specify exact model ID directly:
+                  </label>
                   <input
                     type="text"
                     value={modelName}
                     onChange={(e) => setModelName(e.target.value)}
-                    placeholder="e.g. llama3.1, mistral, meditron"
-                    className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-2 focus:outline-none focus:border-cyan-500 font-mono"
+                    placeholder="e.g. llama-3.3-70b-versatile or llama3-70b-8192"
+                    className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-1.5 font-mono focus:outline-none focus:border-cyan-500"
                   />
-                )}
+                </div>
               </div>
 
               {/* Custom Endpoint for Local Ollama */}
@@ -236,30 +342,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
               )}
-
-              {/* API Key */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center space-x-1">
-                  <Key className="w-3 h-3 text-cyan-400" />
-                  <span>
-                    {provider === 'groq'
-                      ? 'Groq API Key (gsk_...)'
-                      : provider === 'openai'
-                      ? 'OpenAI API Key (sk-...)'
-                      : 'API Key (Optional for Local Ollama)'}
-                  </span>
-                </label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder={provider === 'groq' ? 'gsk_...' : 'sk-...'}
-                  className="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 rounded px-3 py-2 font-mono focus:outline-none focus:border-cyan-500"
-                />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Key is saved in browser state only and never transmitted to external third parties.
-                </p>
-              </div>
             </div>
           )}
         </div>

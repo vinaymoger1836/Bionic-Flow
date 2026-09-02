@@ -137,9 +137,22 @@ Generate the complete structured report in JSON:`;
   } catch (error: any) {
     console.error('Failed to generate with live LLM, falling back to local engine:', error);
     const fallback = generateStructuredReport(dictation, templateId);
+    
+    // Extract clean error message
+    let errMsg = error.message || 'API Error';
+    try {
+      const match = errMsg.match(/\{.*\}/);
+      if (match) {
+        const errObj = JSON.parse(match[0]);
+        if (errObj.error?.message) {
+          errMsg = errObj.error.message;
+        }
+      }
+    } catch (_) {}
+
     return {
       ...fallback,
-      title: `${fallback.title} (Fallback: API Connection Error)`,
+      title: `${fallback.title} [Live LLM Error: ${errMsg.slice(0, 60)}... → Local Fallback]`,
     };
   }
 }
