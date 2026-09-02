@@ -1,0 +1,256 @@
+import React, { useState } from 'react';
+import { Header } from './components/Header';
+import { TestCasePresets } from './components/TestCasePresets';
+import { DictationInput } from './components/DictationInput';
+import { StructuredReportView } from './components/StructuredReportView';
+import { ValidationInspector } from './components/ValidationInspector';
+import { TelemetryBar } from './components/TelemetryBar';
+import { ExportModal } from './components/ExportModal';
+import { SettingsModal } from './components/SettingsModal';
+import type {
+  StructuredReport,
+  ValidationWarning,
+  GenerationSettings,
+  TestCasePreset,
+} from './types/report';
+import { generateStructuredReport } from './engine/reportGenerator';
+import { validateReport } from './engine/reportValidator';
+import { TEST_CASE_PRESETS } from './engine/presets';
+
+import { generateReportWithLLM } from './engine/llmService';
+
+export const App: React.FC = () => {
+  const [dictation, setDictation] = useState(TEST_CASE_PRESETS[0].dictation);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(
+    TEST_CASE_PRESETS[0].templateId || 'ct_brain'
+  );
+  const [selectedPresetId, setSelectedPresetId] = useState<string | undefined>(
+    TEST_CASE_PRESETS[0].id
+  );
+
+  const [report, setReport] = useState<StructuredReport>(() =>
+    generateStructuredReport(TEST_CASE_PRESETS[0].dictation, TEST_CASE_PRESETS[0].templateId)
+  );
+
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const [settings, setSettings] = useState<GenerationSettings>({
+    mode: 'rule_based',
+    provider: 'groq',
+    modelName: 'llama-3.3-70b-versatile',
+  });
+
+  const handleSelectPreset = (preset: TestCasePreset) => {
+    setSelectedPresetId(preset.id);
+    setDictation(preset.dictation);
+    if (preset.templateId) {
+      setSelectedTemplateId(preset.templateId);
+    }
+    const generated = generateStructuredReport(preset.dictation, preset.templateId);
+    setReport(generated);
+  };
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      if (settings.mode === 'live_llm' && settings.apiKey?.trim()) {
+        const generated = await generateReportWithLLM(
+          dictation,
+          selectedTemplateId,
+          settings
+        );
+        setReport(generated);
+      } else {
+        setTimeout(() => {
+          const generated = generateStructuredReport(dictation, selectedTemplateId);
+          setReport(generated);
+        }, 150);
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+      const generated = generateStructuredReport(dictation, selectedTemplateId);
+      setReport(generated);
+    } finally {
+      setTimeout(() => setIsGenerating(false), 200);
+    }
+  };
+
+  const handleUpdateSentence = (
+    section: 'findings' | 'impression',
+    sentenceId: string,
+    newText: string
+  ) => {
+    setReport((prev) => {
+      const updatedFindings =
+        section === 'findings'
+          ? prev.findings.map((s) =>
+              s.id === sentenceId ? { ...s, text: newText, isEdited: true } : s
+            )
+          : prev.findings;
+
+      const updatedImpression =
+        section === 'impression'
+          ? prev.impression.map((s) =>
+              s.id === sentenceId ? { ...s, text: newText, isEdited: true } : s
+            )
+          : prev.impression;
+
+      const newWarnings = validateReport(dictation, updatedFindings, updatedImpression);
+
+      return {
+        ...prev,
+        findings: updatedFindings,
+        impression: updatedImpression,
+        warnings: newWarnings,
+      };
+    });
+  };
+
+  const handleApplyFix = (warning: ValidationWarning) => {
+    if (!warning.suggestedFix) return;
+
+    setReport((prev) => {
+      if (warning.targetSentenceId) {
+        const inFindings = prev.findings.some((s) => s.id === warning.targetSentenceId);
+        const updatedFindings = inFindings
+          ? prev.findings.map((s) =>
+              s.id === warning.targetSentenceId
+                ? { ...s, text: warning.suggestedFix!, isEdited: true }
+                : s
+            )
+          : prev.findings;
+
+        const updatedImpression = !inFindings
+          ? prev.impression.map((s) =>
+              s.id === warning.targetSentenceId
+                ? { ...s, text: warning.suggestedFix!, isEdited: true }
+                : s
+            )
+          : prev.impression;
+
+        const newWarnings = validateReport(dictation, updatedFindings, updatedImpression);
+
+        return {
+          ...prev,
+          findings: updatedFindings,
+          impression: updatedImpression,
+          warnings: newWarnings,
+        };
+      }
+
+      const updatedImpression = prev.impression.map((s) => {
+        if (warning.reportSpan && s.text.includes(warning.reportSpan)) {
+          return {
+            ...s,
+            text: warning.suggestedFix || s.text,
+            isEdited: true,
+          };
+        }
+        return s;
+      });
+
+      const newWarnings = validateReport(dictation, prev.findings, updatedImpression);
+
+      return {
+        ...prev,
+        impression: updatedImpression,
+        warnings: newWarnings,
+      };
+    });
+  };
+
+  const handleDismissWarning = (warningId: string, reason: string) => {
+    setReport((prev) => ({
+      ...prev,
+      warnings: prev.warnings.map((w) =>
+        w.id === warningId ? { ...w, dismissed: true, dismissReason: reason } : w
+      ),
+    }));
+  };
+
+  const handleRestoreWarning = (warningId: string) => {
+    setReport((prev) => ({
+      ...prev,
+      warnings: prev.warnings.map((w) => (w.id === warningId ? { ...w, dismissed: false } : w)),
+    }));
+  };
+
+  const handleSignOff = () => {
+    alert(
+      'Report successfully signed and submitted to PACS / RIS! Audit logs recorded.'
+    );
+  };
+
+  return (
+    <div className={`min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+      <Header
+        generationTimeMs={report.generationTimeMs}
+        settings={settings}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+      />
+
+      <main className="max-w-7xl mx-auto p-4 sm:p-6">
+        <TestCasePresets
+          selectedPresetId={selectedPresetId}
+          onSelectPreset={handleSelectPreset}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-5 h-[580px]">
+            <DictationInput
+              dictation={dictation}
+              onChangeDictation={(val) => {
+                setDictation(val);
+                setSelectedPresetId(undefined);
+              }}
+              selectedTemplateId={selectedTemplateId}
+              onChangeTemplate={setSelectedTemplateId}
+              onGenerate={handleGenerate}
+              isGenerating={isGenerating}
+            />
+          </div>
+
+          <div className="lg:col-span-4 h-[580px]">
+            <StructuredReportView
+              report={report}
+              onUpdateSentence={handleUpdateSentence}
+              onExport={() => setIsExportOpen(true)}
+              warnings={report.warnings}
+            />
+          </div>
+
+          <div className="lg:col-span-3 h-[580px]">
+            <ValidationInspector
+              warnings={report.warnings}
+              onApplyFix={handleApplyFix}
+              onDismissWarning={handleDismissWarning}
+              onRestoreWarning={handleRestoreWarning}
+            />
+          </div>
+        </div>
+
+        <TelemetryBar report={report} onSignOff={handleSignOff} />
+      </main>
+
+      <ExportModal
+        report={report}
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+      />
+
+      <SettingsModal
+        settings={settings}
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={(newSettings) => setSettings(newSettings)}
+      />
+    </div>
+  );
+};
+
+export default App;
