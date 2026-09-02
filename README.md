@@ -2,6 +2,8 @@
 > **5C Network Product Engineering Exercise**  
 > *Author: Vinayakumar* &bull; *Time Bound: ~3 hours*
 
+🌐 **Live Deployed Application:** [https://bionic-flow.vercel.app/](https://bionic-flow.vercel.app/)
+
 Bionic Flow is an AI-native reporting workspace designed for high-throughput teleradiology networks (~20,000 scans/day). It turns unstructured radiologist dictations into structured, sign-ready reports (Findings & Impression), visualizes sentence-level provenance, and enforces deterministic multi-dimensional safety guardrails before sign-off.
 
 ---
