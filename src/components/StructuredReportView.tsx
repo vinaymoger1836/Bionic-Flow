@@ -47,12 +47,6 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
   onSelectSentence,
   onDocumentCriticalAlert,
 }) => {
-  warnings,
-  activeSentenceId,
-  activeGroundingSpan,
-  onHoverSentence,
-  onSelectSentence,
-}) => {
   const [copied, setCopied] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState('');
