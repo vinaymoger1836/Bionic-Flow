@@ -79,6 +79,16 @@ In real-world teleradiology processing ~20,000 scans daily, life-threatening acu
 
 ---
 
+## 📝 Radiologist Preferred Templates & Macro Manager
+
+To fulfill 5C Network's mandate to *"respect each radiologist’s preferred templates and formatting"*:
+- **Custom Normal Phrasing**: Radiologists can open the **Template Manager** (sliders icon next to template picker) to customize default normal text inserted for unmentioned anatomical organs.
+- **Macro Shortcuts**: Support for quick macro hotkeys (e.g. `.normbrain`, `.normabd`, `.normchest`) displayed on each template.
+- **Persistent Local Storage**: Custom templates, modified organ baselines, and newly added templates are persisted in browser storage and immediately utilized across report generations.
+- **Reset to Institutional Defaults**: 1-click option to revert customizations to 5C Network standard templates.
+
+---
+
 ## ⚡ Live LLM Mode with Groq (Open Source Models)
 
 Bionic Flow supports **Groq** for sub-300ms live LLM structured report generation using top open-source models:
