@@ -10,9 +10,11 @@ import {
   Crosshair,
   MapPin,
   CheckCircle2,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { RADIOLOGY_TEMPLATES } from '../engine/templates';
 import { splitIntoSentences } from '../engine/reportGenerator';
+import type { RadiologyTemplate } from '../types/report';
 
 interface DictationInputProps {
   dictation: string;
@@ -25,6 +27,8 @@ interface DictationInputProps {
   onHoverDictationSpan?: (span: string | null) => void;
   onSelectDictationSpan?: (span: string | null) => void;
   groundingOriginSentence?: string | null;
+  templates?: RadiologyTemplate[];
+  onOpenTemplateManager?: () => void;
 }
 
 export const DictationInput: React.FC<DictationInputProps> = ({
@@ -38,6 +42,8 @@ export const DictationInput: React.FC<DictationInputProps> = ({
   onHoverDictationSpan,
   onSelectDictationSpan,
   groundingOriginSentence,
+  templates = RADIOLOGY_TEMPLATES,
+  onOpenTemplateManager,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(true);
@@ -178,12 +184,23 @@ export const DictationInput: React.FC<DictationInputProps> = ({
               onChange={(e) => onChangeTemplate(e.target.value)}
               className="bg-slate-900 border border-slate-800 text-slate-200 text-xs rounded px-2 py-1 focus:outline-none focus:border-cyan-500 cursor-pointer"
             >
-              {RADIOLOGY_TEMPLATES.map((t) => (
+              {templates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {t.name} {t.macroShortcut ? `(${t.macroShortcut})` : ''}
                 </option>
               ))}
             </select>
+
+            {onOpenTemplateManager && (
+              <button
+                type="button"
+                onClick={onOpenTemplateManager}
+                className="p-1 rounded text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition cursor-pointer"
+                title="Customize preferred normal templates & macro hotkeys"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           <button
