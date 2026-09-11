@@ -1,6 +1,7 @@
 import type {
   ReportSentence,
   StructuredReport,
+  RadiologyTemplate,
 } from '../types/report';
 import { getTemplateForDictation } from './templates';
 import { validateReport } from './reportValidator';
@@ -16,10 +17,11 @@ export function splitIntoSentences(text: string): string[] {
 
 export function generateStructuredReport(
   dictation: string,
-  templateId?: string
+  templateId?: string,
+  availableTemplates?: RadiologyTemplate[]
 ): StructuredReport {
   const startTime = performance.now();
-  const template = getTemplateForDictation(dictation, templateId);
+  const template = getTemplateForDictation(dictation, templateId, availableTemplates);
   const dictationLower = dictation.toLowerCase();
 
   const isPostCholecystectomy =

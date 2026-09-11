@@ -7,19 +7,29 @@ import { ValidationInspector } from './components/ValidationInspector';
 import { TelemetryBar } from './components/TelemetryBar';
 import { ExportModal } from './components/ExportModal';
 import { SettingsModal } from './components/SettingsModal';
+import { TemplateManagerModal } from './components/TemplateManagerModal';
 import type {
   StructuredReport,
   ValidationWarning,
   GenerationSettings,
   TestCasePreset,
+  RadiologyTemplate,
 } from './types/report';
 import { generateStructuredReport } from './engine/reportGenerator';
 import { validateReport } from './engine/reportValidator';
 import { TEST_CASE_PRESETS } from './engine/presets';
+import {
+  getStoredTemplates,
+  saveStoredTemplates,
+  resetTemplatesToDefault,
+} from './engine/templates';
 
 import { generateReportWithLLM } from './engine/llmService';
 
 export const App: React.FC = () => {
+  const [templates, setTemplates] = useState<RadiologyTemplate[]>(() => getStoredTemplates());
+  const [isTemplateManagerOpen, setIsTemplateManagerOpen] = useState(false);
+
   const [dictation, setDictation] = useState(TEST_CASE_PRESETS[0].dictation);
   const [selectedTemplateId, setSelectedTemplateId] = useState(
     TEST_CASE_PRESETS[0].templateId || 'ct_brain'
@@ -29,7 +39,11 @@ export const App: React.FC = () => {
   );
 
   const [report, setReport] = useState<StructuredReport>(() =>
-    generateStructuredReport(TEST_CASE_PRESETS[0].dictation, TEST_CASE_PRESETS[0].templateId)
+    generateStructuredReport(
+      TEST_CASE_PRESETS[0].dictation,
+      TEST_CASE_PRESETS[0].templateId,
+      getStoredTemplates()
+    )
   );
 
   const [isGenerating, setIsGenerating] = useState(false);
