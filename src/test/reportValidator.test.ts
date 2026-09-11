@@ -163,4 +163,36 @@ describe('Bionic Flow Clinical Safety Engine', () => {
 
     expect(alert).toBeNull();
   });
+
+  it('Custom Radiologist Preferred Template: respects customized normal organ phrasing', () => {
+    const customNormalText = 'Ventricles are completely symmetric without transependymal edema.';
+    const customTemplates = [
+      {
+        id: 'ct_brain',
+        name: 'CT Brain (Customized)',
+        modality: 'CT',
+        macroShortcut: '.normbrain',
+        organSections: [
+          {
+            name: 'Brain Parenchyma',
+            normalText: 'Normal gray-white differentiation.',
+            keywords: ['parenchyma', 'cerebral', 'hemorrhage', 'haemorrhage', 'bleed'],
+          },
+          {
+            name: 'Ventricles and Cisterns',
+            normalText: customNormalText,
+            keywords: ['ventricle', 'ventricles', 'cistern', 'hydrocephalus'],
+          },
+        ],
+      },
+    ];
+
+    const dictation = 'CT Brain. Acute hemorrhage in left basal ganglia.';
+    const report = generateStructuredReport(dictation, 'ct_brain', customTemplates);
+
+    const ventricleSentence = report.findings.find((f) => f.anatomy === 'Ventricles and Cisterns');
+    expect(ventricleSentence).toBeDefined();
+    expect(ventricleSentence?.text).toBe(customNormalText);
+    expect(ventricleSentence?.source).toBe('template');
+  });
 });
