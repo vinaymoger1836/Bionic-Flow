@@ -319,6 +319,7 @@ export const App: React.FC = () => {
               activeGroundingSpan={activeGroundingSpan}
               onHoverSentence={handleHoverSentence}
               onSelectSentence={handleSelectSentence}
+              onDocumentCriticalAlert={handleDocumentCriticalAlert}
             />
           </div>
 
