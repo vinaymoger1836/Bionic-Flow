@@ -236,6 +236,38 @@ export const App: React.FC = () => {
     }));
   };
 
+  const handleDocumentCriticalAlert = (details: {
+    physicianName: string;
+    readbackConfirmed: boolean;
+    contactMethod: string;
+    timestamp: string;
+  }) => {
+    setReport((prev) => {
+      if (!prev.criticalAlert) return prev;
+      const updatedAlert = {
+        ...prev.criticalAlert,
+        notified: true,
+        physicianName: details.physicianName,
+        readbackConfirmed: details.readbackConfirmed,
+        contactMethod: details.contactMethod,
+        timestamp: details.timestamp,
+      };
+
+      const attestationSentence = {
+        id: `imp-crit-attest-${Date.now()}`,
+        text: `CRITICAL VALUE DIRECTLY COMMUNICATED: Ordering/Attending physician ${details.physicianName} verbally notified via ${details.contactMethod} at ${details.timestamp}. Verbal read-back of ${prev.criticalAlert.findingText.toLowerCase()} confirmed.`,
+        source: 'system_inference' as const,
+        section: 'impression' as const,
+      };
+
+      return {
+        ...prev,
+        criticalAlert: updatedAlert,
+        impression: [...prev.impression, attestationSentence],
+      };
+    });
+  };
+
   const handleSignOff = () => {
     alert(
       'Report successfully signed and submitted to PACS / RIS! Audit logs recorded.'
