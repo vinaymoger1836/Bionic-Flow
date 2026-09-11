@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateStructuredReport } from '../engine/reportGenerator';
 import { validateReport } from '../engine/reportValidator';
+import { detectCriticalFinding } from '../engine/criticalAlerts';
 import { TEST_CASE_PRESETS } from '../engine/presets';
 import type { ReportSentence } from '../types/report';
 
@@ -144,5 +145,22 @@ describe('Bionic Flow Clinical Safety Engine', () => {
     const primaryImpression = report.impression[0];
     expect(primaryImpression.groundingSpan).toBeDefined();
     expect(primaryImpression.groundingSpan?.toLowerCase()).toMatch(/haemorrhage|hemorrhage/);
+  });
+
+  it('ACR Critical Finding Detection: detects acute intracranial hemorrhage in Case 1 as STAT Category 1', () => {
+    const preset = TEST_CASE_PRESETS[0];
+    const report = generateStructuredReport(preset.dictation, preset.templateId);
+
+    expect(report.criticalAlert).toBeDefined();
+    expect(report.criticalAlert?.urgency).toBe('stat');
+    expect(report.criticalAlert?.categoryName).toContain('ACR Category 1');
+    expect(report.criticalAlert?.findingText.toLowerCase()).toMatch(/haemorrhage|hemorrhage/);
+  });
+
+  it('ACR Critical Finding Negation: suppresses false alert when acute finding is negated', () => {
+    const dictation = 'CT Brain. No acute intracranial hemorrhage or territorial infarction. Ventricles are normal.';
+    const alert = detectCriticalFinding(dictation, []);
+
+    expect(alert).toBeNull();
   });
 });
