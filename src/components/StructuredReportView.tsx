@@ -256,6 +256,16 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
           </div>
         </div>
 
+        {/* ACR Critical Actionable Finding Banner */}
+        {report.criticalAlert && onDocumentCriticalAlert && (
+          <div className="mb-2">
+            <CriticalAlertBanner
+              alert={report.criticalAlert}
+              onDocumentNotification={onDocumentCriticalAlert}
+            />
+          </div>
+        )}
+
         {/* Section 2: IMPRESSION */}
         <div>
           <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
