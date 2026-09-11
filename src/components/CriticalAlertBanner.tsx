@@ -4,9 +4,7 @@ import {
   AlertOctagon,
   CheckCircle2,
   PhoneCall,
-  Clock,
   ShieldAlert,
-  FileCheck,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
