@@ -71,7 +71,7 @@ export const App: React.FC = () => {
     if (preset.templateId) {
       setSelectedTemplateId(preset.templateId);
     }
-    const generated = generateStructuredReport(preset.dictation, preset.templateId);
+    const generated = generateStructuredReport(preset.dictation, preset.templateId, templates);
     setReport(generated);
   };
 
@@ -137,17 +137,31 @@ export const App: React.FC = () => {
         setReport(generated);
       } else {
         setTimeout(() => {
-          const generated = generateStructuredReport(dictation, selectedTemplateId);
+          const generated = generateStructuredReport(dictation, selectedTemplateId, templates);
           setReport(generated);
         }, 150);
       }
     } catch (err) {
       console.error('Generation error:', err);
-      const generated = generateStructuredReport(dictation, selectedTemplateId);
+      const generated = generateStructuredReport(dictation, selectedTemplateId, templates);
       setReport(generated);
     } finally {
       setTimeout(() => setIsGenerating(false), 200);
     }
+  };
+
+  const handleSaveTemplates = (newTemplates: RadiologyTemplate[]) => {
+    saveStoredTemplates(newTemplates);
+    setTemplates(newTemplates);
+    const regenerated = generateStructuredReport(dictation, selectedTemplateId, newTemplates);
+    setReport(regenerated);
+  };
+
+  const handleResetTemplates = () => {
+    const defaults = resetTemplatesToDefault();
+    setTemplates(defaults);
+    const regenerated = generateStructuredReport(dictation, selectedTemplateId, defaults);
+    setReport(regenerated);
   };
 
   const handleUpdateSentence = (
