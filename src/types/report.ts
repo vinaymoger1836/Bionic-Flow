@@ -36,6 +36,19 @@ export interface ValidationWarning {
   dismissReason?: string;
 }
 
+export interface CriticalAlert {
+  id: string;
+  findingText: string;
+  anatomy: string;
+  urgency: 'stat' | 'urgent'; // STAT = Category 1 (< 60 min), Urgent = Category 2
+  categoryName: string;
+  notified: boolean;
+  physicianName?: string;
+  readbackConfirmed?: boolean;
+  timestamp?: string;
+  contactMethod?: string;
+}
+
 export interface StructuredReport {
   id: string;
   title: string;
@@ -48,6 +61,7 @@ export interface StructuredReport {
   templateUsed?: string;
   timestamp: string;
   llmModelUsed?: string;
+  criticalAlert?: CriticalAlert | null;
 }
 
 export interface TestCasePreset {
