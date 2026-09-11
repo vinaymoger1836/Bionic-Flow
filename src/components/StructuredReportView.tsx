@@ -13,6 +13,7 @@ import {
   Download,
   MapPin,
 } from 'lucide-react';
+import { CriticalAlertBanner } from './CriticalAlertBanner';
 
 interface StructuredReportViewProps {
   report: StructuredReport;
@@ -27,12 +28,25 @@ interface StructuredReportViewProps {
   activeGroundingSpan?: string | null;
   onHoverSentence?: (sentence: ReportSentence | null) => void;
   onSelectSentence?: (sentence: ReportSentence | null) => void;
+  onDocumentCriticalAlert?: (details: {
+    physicianName: string;
+    readbackConfirmed: boolean;
+    contactMethod: string;
+    timestamp: string;
+  }) => void;
 }
 
 export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
   report,
   onUpdateSentence,
   onExport,
+  warnings,
+  activeSentenceId,
+  activeGroundingSpan,
+  onHoverSentence,
+  onSelectSentence,
+  onDocumentCriticalAlert,
+}) => {
   warnings,
   activeSentenceId,
   activeGroundingSpan,
