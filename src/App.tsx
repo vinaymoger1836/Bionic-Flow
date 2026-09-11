@@ -334,6 +334,8 @@ export const App: React.FC = () => {
               onHoverDictationSpan={handleHoverDictationSpan}
               onSelectDictationSpan={handleSelectDictationSpan}
               groundingOriginSentence={groundingOriginSentence}
+              templates={templates}
+              onOpenTemplateManager={() => setIsTemplateManagerOpen(true)}
             />
           </div>
 
@@ -375,6 +377,14 @@ export const App: React.FC = () => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onSave={(newSettings) => setSettings(newSettings)}
+      />
+
+      <TemplateManagerModal
+        isOpen={isTemplateManagerOpen}
+        onClose={() => setIsTemplateManagerOpen(false)}
+        templates={templates}
+        onSaveTemplates={handleSaveTemplates}
+        onResetTemplates={handleResetTemplates}
       />
     </div>
   );
