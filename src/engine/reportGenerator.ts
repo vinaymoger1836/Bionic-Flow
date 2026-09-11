@@ -214,6 +214,9 @@ export function generateStructuredReport(
   // Run 5-point validation
   const warnings = validateReport(dictation, findings, impression);
 
+  // Detect ACR Actionable Critical Finding
+  const criticalAlert = detectCriticalFinding(dictation, findings);
+
   return {
     id: `report-${Date.now()}`,
     title: `${template.name} Report`,
@@ -225,5 +228,6 @@ export function generateStructuredReport(
     warnings,
     templateUsed: template.name,
     timestamp: new Date().toLocaleTimeString(),
+    criticalAlert,
   };
 }
