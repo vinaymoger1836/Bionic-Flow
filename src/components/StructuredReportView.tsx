@@ -11,6 +11,7 @@ import {
   Check,
   Edit2,
   Download,
+  MapPin,
 } from 'lucide-react';
 
 interface StructuredReportViewProps {
@@ -22,6 +23,10 @@ interface StructuredReportViewProps {
   ) => void;
   onExport: () => void;
   warnings: ValidationWarning[];
+  activeSentenceId?: string | null;
+  activeGroundingSpan?: string | null;
+  onHoverSentence?: (sentence: ReportSentence | null) => void;
+  onSelectSentence?: (sentence: ReportSentence | null) => void;
 }
 
 export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
@@ -29,6 +34,10 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
   onUpdateSentence,
   onExport,
   warnings,
+  activeSentenceId,
+  activeGroundingSpan,
+  onHoverSentence,
+  onSelectSentence,
 }) => {
   const [copied, setCopied] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -44,7 +53,8 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const startEdit = (sentence: ReportSentence) => {
+  const startEdit = (sentence: ReportSentence, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingId(sentence.id);
     setEditBuffer(sentence.text);
   };
@@ -67,7 +77,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
       case 'dictation':
         return (
           <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-950/80 text-cyan-300 border border-cyan-800/80"
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 select-none"
             title="Transcribed directly from radiologist dictation"
           >
             Dictation
@@ -76,7 +86,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
       case 'template':
         return (
           <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/80"
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 select-none"
             title="Sourced from standard normal baseline template"
           >
             Template
@@ -85,7 +95,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
       case 'system_inference':
         return (
           <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/80 text-purple-300 border border-purple-800/80"
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/80 text-purple-300 border border-purple-800/80 select-none"
             title="Synthesized by AI / System clinical inference"
           >
             System Inference
@@ -98,8 +108,19 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
     return warnings.some((w) => w.targetSentenceId === sentenceId && !w.dismissed);
   };
 
+  const isSentenceActive = (sentence: ReportSentence) => {
+    if (activeSentenceId === sentence.id) return true;
+    if (activeGroundingSpan && sentence.groundingSpan) {
+      const gClean = sentence.groundingSpan.toLowerCase().trim();
+      const aClean = activeGroundingSpan.toLowerCase().trim();
+      return gClean.includes(aClean) || aClean.includes(gClean);
+    }
+    return false;
+  };
+
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col h-full overflow-hidden shadow-lg shadow-black/40">
+      {/* Header */}
       <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <FileText className="w-4 h-4 text-cyan-400" />
@@ -128,7 +149,9 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
         </div>
       </div>
 
+      {/* Report Content */}
       <div className="p-4 flex-1 overflow-y-auto space-y-6">
+        {/* Section 1: FINDINGS */}
         <div>
           <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
             <h4 className="text-xs uppercase tracking-wider font-bold text-slate-300 m-0 flex items-center space-x-1.5">
@@ -137,25 +160,32 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                 ({report.findings.length} sentences)
               </span>
             </h4>
+            <span className="text-[10px] text-slate-500 italic">Click/Hover to trace</span>
           </div>
 
           <div className="space-y-2">
             {report.findings.map((sentence) => {
               const isEditing = editingId === sentence.id;
               const hasWarning = isSentenceWarned(sentence.id);
+              const isActive = isSentenceActive(sentence);
 
               return (
                 <div
                   key={sentence.id}
-                  className={`group relative p-2.5 rounded-lg border transition ${
-                    hasWarning
+                  onMouseEnter={() => !isEditing && onHoverSentence?.(sentence)}
+                  onMouseLeave={() => !isEditing && onHoverSentence?.(null)}
+                  onClick={() => !isEditing && onSelectSentence?.(isActive ? null : sentence)}
+                  className={`group relative p-2.5 rounded-lg border transition duration-150 cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-md shadow-cyan-950 ring-1 ring-cyan-400/60'
+                      : hasWarning
                       ? 'bg-amber-950/20 border-amber-800/80 shadow-sm'
                       : 'bg-slate-950/40 hover:bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     {isEditing ? (
-                      <div className="flex-1">
+                      <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                         <textarea
                           value={editBuffer}
                           onChange={(e) => setEditBuffer(e.target.value)}
@@ -185,10 +215,24 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                         </p>
 
                         <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          {sentence.groundingSpan && (
+                            <span
+                              className={`inline-flex items-center space-x-0.5 text-[9px] px-1 py-0.5 rounded font-mono transition select-none ${
+                                isActive
+                                  ? 'bg-cyan-500 text-slate-950 font-bold'
+                                  : 'bg-slate-900 text-cyan-400/80 border border-cyan-900 hover:text-cyan-300'
+                              }`}
+                              title="Click to highlight exact dictation source"
+                            >
+                              <MapPin className="w-2.5 h-2.5" />
+                              <span>Trace</span>
+                            </span>
+                          )}
+
                           {getProvenanceBadge(sentence.source)}
 
                           <button
-                            onClick={() => startEdit(sentence)}
+                            onClick={(e) => startEdit(sentence, e)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-white transition cursor-pointer"
                             title="Edit sentence"
                           >
@@ -204,6 +248,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
           </div>
         </div>
 
+        {/* Section 2: IMPRESSION */}
         <div>
           <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
             <h4 className="text-xs uppercase tracking-wider font-bold text-slate-300 m-0 flex items-center space-x-1.5">
@@ -212,25 +257,32 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                 ({report.impression.length} points)
               </span>
             </h4>
+            <span className="text-[10px] text-slate-500 italic">Click/Hover to trace</span>
           </div>
 
           <div className="space-y-2">
             {report.impression.map((sentence, idx) => {
               const isEditing = editingId === sentence.id;
               const hasWarning = isSentenceWarned(sentence.id);
+              const isActive = isSentenceActive(sentence);
 
               return (
                 <div
                   key={sentence.id}
-                  className={`group relative p-2.5 rounded-lg border transition ${
-                    hasWarning
+                  onMouseEnter={() => !isEditing && onHoverSentence?.(sentence)}
+                  onMouseLeave={() => !isEditing && onHoverSentence?.(null)}
+                  onClick={() => !isEditing && onSelectSentence?.(isActive ? null : sentence)}
+                  className={`group relative p-2.5 rounded-lg border transition duration-150 cursor-pointer ${
+                    isActive
+                      ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-md shadow-cyan-950 ring-1 ring-cyan-400/60'
+                      : hasWarning
                       ? 'bg-red-950/20 border-red-800 shadow-sm shadow-red-950/50'
                       : 'bg-slate-950/40 hover:bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     {isEditing ? (
-                      <div className="flex-1">
+                      <div className="flex-1" onClick={(e) => e.stopPropagation()}>
                         <textarea
                           value={editBuffer}
                           onChange={(e) => setEditBuffer(e.target.value)}
@@ -265,10 +317,24 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                         </div>
 
                         <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          {sentence.groundingSpan && (
+                            <span
+                              className={`inline-flex items-center space-x-0.5 text-[9px] px-1 py-0.5 rounded font-mono transition select-none ${
+                                isActive
+                                  ? 'bg-cyan-500 text-slate-950 font-bold'
+                                  : 'bg-slate-900 text-cyan-400/80 border border-cyan-900 hover:text-cyan-300'
+                              }`}
+                              title="Click to highlight exact dictation source"
+                            >
+                              <MapPin className="w-2.5 h-2.5" />
+                              <span>Trace</span>
+                            </span>
+                          )}
+
                           {getProvenanceBadge(sentence.source)}
 
                           <button
-                            onClick={() => startEdit(sentence)}
+                            onClick={(e) => startEdit(sentence, e)}
                             className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-white transition cursor-pointer"
                             title="Edit sentence"
                           >

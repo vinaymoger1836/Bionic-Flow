@@ -10,6 +10,7 @@ export interface ReportSentence {
   anatomy?: string;
   isEdited?: boolean;
   originalText?: string;
+  groundingSpan?: string;
 }
 
 export type ValidationType =

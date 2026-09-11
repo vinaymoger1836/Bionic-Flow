@@ -71,6 +71,7 @@ export function generateStructuredReport(
       source: 'dictation',
       section: 'findings',
       anatomy: anatomyLabel,
+      groundingSpan: rawSentence,
     });
   }
 
@@ -109,6 +110,7 @@ export function generateStructuredReport(
         text: s.endsWith('.') ? s : `${s}.`,
         source: 'dictation',
         section: 'impression',
+        groundingSpan: s,
       });
     });
   } else {
@@ -119,6 +121,8 @@ export function generateStructuredReport(
       const hasBleed = dictationLower.includes('haemorrhage') || dictationLower.includes('hemorrhage');
       const hasEdema = dictationLower.includes('oedema') || dictationLower.includes('edema');
       const hasLeft = dictationLower.includes('left');
+      const bleedSentence = rawDictatedSentences.find((s) => s.toLowerCase().includes('haemorrhage') || s.toLowerCase().includes('hemorrhage'));
+      const midlineSentence = rawDictatedSentences.find((s) => s.toLowerCase().includes('midline shift'));
 
       if (hasBleed) {
         const sideStr = hasLeft ? 'Acute left basal ganglia' : 'Acute';
@@ -128,12 +132,14 @@ export function generateStructuredReport(
           text: `${sideStr} haemorrhage measuring 12 by 8 millimetre${edemaStr}.`,
           source: 'system_inference',
           section: 'impression',
+          groundingSpan: bleedSentence || '12 by 8 millimetre acute haemorrhage in the left basal ganglia',
         });
         impression.push({
           id: `imp-syn-2`,
           text: 'No midline shift identified.',
           source: 'system_inference',
           section: 'impression',
+          groundingSpan: midlineSentence || 'No midline shift.',
         });
       } else {
         impression.push({
@@ -144,12 +150,16 @@ export function generateStructuredReport(
         });
       }
     } else if (template.id === 'ct_abdomen') {
+      const liverSentence = rawDictatedSentences.find((s) => s.toLowerCase().includes('segment six') || s.toLowerCase().includes('segment 6') || s.toLowerCase().includes('liver'));
+      const surgSentence = rawDictatedSentences.find((s) => s.toLowerCase().includes('cholecystectomy'));
+
       if (dictationLower.includes('segment six') || dictationLower.includes('segment 6')) {
         impression.push({
           id: `imp-syn-ab-1`,
           text: '2.4 centimetre hypodense lesion in segment six of the liver.',
           source: 'system_inference',
           section: 'impression',
+          groundingSpan: liverSentence || 'Liver shows a 2.4 centimetre hypodense lesion in segment six.',
         });
       }
       if (isPostCholecystectomy) {
@@ -158,6 +168,7 @@ export function generateStructuredReport(
           text: 'Status post cholecystectomy.',
           source: 'system_inference',
           section: 'impression',
+          groundingSpan: surgSentence || 'Post cholecystectomy status.',
         });
       }
       if (impression.length === 0) {
@@ -183,6 +194,7 @@ export function generateStructuredReport(
             text: ps.text,
             source: 'system_inference',
             section: 'impression',
+            groundingSpan: ps.groundingSpan || ps.text,
           });
         });
       } else {

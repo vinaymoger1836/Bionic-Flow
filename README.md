@@ -1,4 +1,4 @@
-# Bionic Flow — AI-Native Radiology Reporting Workspace
+lets g# Bionic Flow — AI-Native Radiology Reporting Workspace
 > **5C Network Product Engineering Exercise**  
 > *Author: Vinayakumar* &bull; *Time Bound: ~3 hours*
 
@@ -57,6 +57,15 @@ The workstation includes **1-click evaluation buttons** in the header to immedia
   2. 🚩 **Measurement / Unit Inconsistency**: Dictation states `"14 millimetre"`, but impression states `"14 centimetres"` (10x magnitude scaling error). (Auto-Fix: Replace `14 centimetres` with `14 millimetre`).
   3. 🚩 **Negation Inconsistency**: Dictation states `"No hydronephrosis"`, but impression states `"with hydronephrosis"`. (Auto-Fix: Replace `with hydronephrosis` with `no hydronephrosis`).
 - **Interactive Action**: Click **"Apply Suggested Fix"** on each card to automatically repair the report in real-time, or click **"Dismiss"** to record a clinical audit log entry.
+
+---
+
+## 🔍 Bi-Directional Grounding & Traceability Map
+
+To solve the clinical explainability problem in high-volume reporting (20k scans/day):
+- **Hover/Click to Trace**: Hovering or clicking any sentence in **Findings** or **Impression** highlights its exact source span in the **Dictation Panel** with an animated luminous badge.
+- **Traceability Map View**: Switch between **Editor** (raw textarea/mic) and **Traceability Map** (interactive segmented view where clicking a dictation clause highlights the matching report synthesis).
+- **Audit-Ready Integrity**: Guarantees zero "black box" inferences for attending radiologists before sign-off.
 
 ---
 

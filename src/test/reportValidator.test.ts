@@ -133,4 +133,16 @@ describe('Bionic Flow Clinical Safety Engine', () => {
     expect(missingCrit?.severity).toBe('warning');
     expect(missingCrit?.description.toLowerCase()).toMatch(/haemorrhage|hemorrhage/);
   });
+
+  it('Grounding Traceability: assigns valid groundingSpan linking back to raw dictation', () => {
+    const preset = TEST_CASE_PRESETS[0];
+    const report = generateStructuredReport(preset.dictation, preset.templateId);
+
+    const dictationSentences = report.findings.filter((s) => s.source === 'dictation');
+    expect(dictationSentences.every((s) => typeof s.groundingSpan === 'string' && s.groundingSpan.length > 0)).toBe(true);
+
+    const primaryImpression = report.impression[0];
+    expect(primaryImpression.groundingSpan).toBeDefined();
+    expect(primaryImpression.groundingSpan?.toLowerCase()).toMatch(/haemorrhage|hemorrhage/);
+  });
 });

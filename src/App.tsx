@@ -37,6 +37,11 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  // Bi-directional Grounding Trace State
+  const [activeGroundingSpan, setActiveGroundingSpan] = useState<string | null>(null);
+  const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null);
+  const [groundingOriginSentence, setGroundingOriginSentence] = useState<string | null>(null);
+
   const [settings, setSettings] = useState<GenerationSettings>({
     mode: 'rule_based',
     provider: 'groq',
@@ -46,11 +51,64 @@ export const App: React.FC = () => {
   const handleSelectPreset = (preset: TestCasePreset) => {
     setSelectedPresetId(preset.id);
     setDictation(preset.dictation);
+    setActiveGroundingSpan(null);
+    setActiveSentenceId(null);
+    setGroundingOriginSentence(null);
     if (preset.templateId) {
       setSelectedTemplateId(preset.templateId);
     }
     const generated = generateStructuredReport(preset.dictation, preset.templateId);
     setReport(generated);
+  };
+
+  const handleHoverSentence = (sentence: any | null) => {
+    if (sentence && sentence.groundingSpan) {
+      setActiveGroundingSpan(sentence.groundingSpan);
+      setActiveSentenceId(sentence.id);
+      setGroundingOriginSentence(sentence.text);
+    } else {
+      // Only clear if not locked by an explicit selection
+      setActiveGroundingSpan(null);
+      setActiveSentenceId(null);
+      setGroundingOriginSentence(null);
+    }
+  };
+
+  const handleSelectSentence = (sentence: any | null) => {
+    if (sentence && sentence.groundingSpan) {
+      setActiveGroundingSpan(sentence.groundingSpan);
+      setActiveSentenceId(sentence.id);
+      setGroundingOriginSentence(sentence.text);
+    } else {
+      setActiveGroundingSpan(null);
+      setActiveSentenceId(null);
+      setGroundingOriginSentence(null);
+    }
+  };
+
+  const handleHoverDictationSpan = (span: string | null) => {
+    if (!span) {
+      setActiveGroundingSpan(null);
+      setActiveSentenceId(null);
+      return;
+    }
+    setActiveGroundingSpan(span);
+    // Find corresponding report sentence
+    const allSentences = [...report.findings, ...report.impression];
+    const spanClean = span.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').trim();
+    const matched = allSentences.find((s) => {
+      if (!s.groundingSpan) return false;
+      const gClean = s.groundingSpan.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, '').trim();
+      return spanClean.includes(gClean) || gClean.includes(spanClean);
+    });
+    if (matched) {
+      setActiveSentenceId(matched.id);
+      setGroundingOriginSentence(matched.text);
+    }
+  };
+
+  const handleSelectDictationSpan = (span: string | null) => {
+    handleHoverDictationSpan(span);
   };
 
   const handleGenerate = async () => {
@@ -212,6 +270,10 @@ export const App: React.FC = () => {
               onChangeTemplate={setSelectedTemplateId}
               onGenerate={handleGenerate}
               isGenerating={isGenerating}
+              activeGroundingSpan={activeGroundingSpan}
+              onHoverDictationSpan={handleHoverDictationSpan}
+              onSelectDictationSpan={handleSelectDictationSpan}
+              groundingOriginSentence={groundingOriginSentence}
             />
           </div>
 
@@ -221,6 +283,10 @@ export const App: React.FC = () => {
               onUpdateSentence={handleUpdateSentence}
               onExport={() => setIsExportOpen(true)}
               warnings={report.warnings}
+              activeSentenceId={activeSentenceId}
+              activeGroundingSpan={activeGroundingSpan}
+              onHoverSentence={handleHoverSentence}
+              onSelectSentence={handleSelectSentence}
             />
           </div>
 
