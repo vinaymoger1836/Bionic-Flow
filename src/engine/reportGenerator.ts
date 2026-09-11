@@ -4,6 +4,7 @@ import type {
 } from '../types/report';
 import { getTemplateForDictation } from './templates';
 import { validateReport } from './reportValidator';
+import { detectCriticalFinding } from './criticalAlerts';
 
 // Split natural language text into clean sentences
 export function splitIntoSentences(text: string): string[] {
