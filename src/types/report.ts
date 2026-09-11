@@ -78,6 +78,7 @@ export interface RadiologyTemplate {
   id: string;
   name: string;
   modality: string;
+  macroShortcut?: string;
   organSections: {
     name: string;
     normalText: string;

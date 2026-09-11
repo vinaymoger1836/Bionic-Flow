@@ -1,10 +1,11 @@
 import type { RadiologyTemplate } from '../types/report';
 
-export const RADIOLOGY_TEMPLATES: RadiologyTemplate[] = [
+export const DEFAULT_RADIOLOGY_TEMPLATES: RadiologyTemplate[] = [
   {
     id: 'ct_brain',
     name: 'CT Brain (Standard Non-Contrast)',
     modality: 'CT',
+    macroShortcut: '.normbrain',
     organSections: [
       {
         name: 'Brain Parenchyma',
@@ -32,6 +33,7 @@ export const RADIOLOGY_TEMPLATES: RadiologyTemplate[] = [
     id: 'ct_abdomen',
     name: 'CT Abdomen & Pelvis (Contrast Enhanced)',
     modality: 'CT',
+    macroShortcut: '.normabd',
     organSections: [
       {
         name: 'Liver and Biliary Tree',
@@ -68,6 +70,7 @@ export const RADIOLOGY_TEMPLATES: RadiologyTemplate[] = [
     id: 'ct_chest',
     name: 'CT Chest (Standard)',
     modality: 'CT',
+    macroShortcut: '.normchest',
     organSections: [
       {
         name: 'Lungs and Airways',
@@ -88,22 +91,71 @@ export const RADIOLOGY_TEMPLATES: RadiologyTemplate[] = [
   },
 ];
 
-export function getTemplateForDictation(dictation: string, explicitTemplateId?: string): RadiologyTemplate {
+export const RADIOLOGY_TEMPLATES = DEFAULT_RADIOLOGY_TEMPLATES;
+
+const STORAGE_KEY = 'bionic_flow_custom_templates';
+
+export function getStoredTemplates(): RadiologyTemplate[] {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return DEFAULT_RADIOLOGY_TEMPLATES;
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load custom templates from storage:', err);
+  }
+  return DEFAULT_RADIOLOGY_TEMPLATES;
+}
+
+export function saveStoredTemplates(templates: RadiologyTemplate[]): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  } catch (err) {
+    console.error('Failed to save templates to storage:', err);
+  }
+}
+
+export function resetTemplatesToDefault(): RadiologyTemplate[] {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem(STORAGE_KEY);
+  }
+  return DEFAULT_RADIOLOGY_TEMPLATES;
+}
+
+export function getTemplateForDictation(
+  dictation: string,
+  explicitTemplateId?: string,
+  availableTemplates?: RadiologyTemplate[]
+): RadiologyTemplate {
+  const templates = availableTemplates && availableTemplates.length > 0
+    ? availableTemplates
+    : getStoredTemplates();
+
   if (explicitTemplateId) {
-    const found = RADIOLOGY_TEMPLATES.find((t) => t.id === explicitTemplateId);
+    const found = templates.find((t) => t.id === explicitTemplateId);
     if (found) return found;
   }
 
   const lower = dictation.toLowerCase();
   if (lower.includes('brain') || lower.includes('head') || lower.includes('haemorrhage') || lower.includes('hemorrhage') || lower.includes('basal ganglia') || lower.includes('stroke')) {
-    return RADIOLOGY_TEMPLATES[0]; // ct_brain
+    const brainTpl = templates.find((t) => t.id === 'ct_brain');
+    if (brainTpl) return brainTpl;
   }
   if (lower.includes('abdomen') || lower.includes('pelvis') || lower.includes('liver') || lower.includes('cholecystectomy') || lower.includes('kidney') || lower.includes('renal') || lower.includes('gallbladder')) {
-    return RADIOLOGY_TEMPLATES[1]; // ct_abdomen
+    const abdTpl = templates.find((t) => t.id === 'ct_abdomen');
+    if (abdTpl) return abdTpl;
   }
   if (lower.includes('chest') || lower.includes('lung') || lower.includes('thorax') || lower.includes('pleural')) {
-    return RADIOLOGY_TEMPLATES[2]; // ct_chest
+    const chestTpl = templates.find((t) => t.id === 'ct_chest');
+    if (chestTpl) return chestTpl;
   }
 
-  return RADIOLOGY_TEMPLATES[0];
+  return templates[0] || DEFAULT_RADIOLOGY_TEMPLATES[0];
 }
