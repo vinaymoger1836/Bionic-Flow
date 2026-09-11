@@ -69,6 +69,16 @@ To solve the clinical explainability problem in high-volume reporting (20k scans
 
 ---
 
+## 🚨 ACR Actionable Critical Findings Tracker
+
+In real-world teleradiology processing ~20,000 scans daily, life-threatening acute findings legally require direct physician-to-physician communication under **ACR Actionable Reporting Practice Parameters**:
+- **Automatic STAT Detection**: Automatically flags acute findings (e.g. Case 1: *acute basal ganglia haemorrhage*, acute pneumothorax, pulmonary embolism, aortic dissection) with high-visibility STAT badges.
+- **1-Click Verbal Read-Back Logger**: Built-in verification form capturing ordering physician name, contact method (direct phone call, PACS alert), and verbal read-back confirmation.
+- **Automatic Medicolegal Attestation**: Appends a legally compliant read-back documentation statement directly into the Impression before electronic sign-off.
+- **Zero False-Positives on Negations**: Purely negated terms (e.g., *"no acute intracranial haemorrhage"*) are correctly suppressed.
+
+---
+
 ## ⚡ Live LLM Mode with Groq (Open Source Models)
 
 Bionic Flow supports **Groq** for sub-300ms live LLM structured report generation using top open-source models:
