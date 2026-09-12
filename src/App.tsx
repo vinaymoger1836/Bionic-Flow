@@ -173,14 +173,18 @@ export const App: React.FC = () => {
       const updatedFindings =
         section === 'findings'
           ? prev.findings.map((s) =>
-              s.id === sentenceId ? { ...s, text: newText, isEdited: true } : s
+              s.id === sentenceId
+                ? { ...s, originalText: s.originalText || s.text, text: newText, isEdited: true }
+                : s
             )
           : prev.findings;
 
       const updatedImpression =
         section === 'impression'
           ? prev.impression.map((s) =>
-              s.id === sentenceId ? { ...s, text: newText, isEdited: true } : s
+              s.id === sentenceId
+                ? { ...s, originalText: s.originalText || s.text, text: newText, isEdited: true }
+                : s
             )
           : prev.impression;
 
@@ -204,7 +208,12 @@ export const App: React.FC = () => {
         const updatedFindings = inFindings
           ? prev.findings.map((s) =>
               s.id === warning.targetSentenceId
-                ? { ...s, text: warning.suggestedFix!, isEdited: true }
+                ? {
+                    ...s,
+                    originalText: s.originalText || s.text,
+                    text: warning.suggestedFix!,
+                    isEdited: true,
+                  }
                 : s
             )
           : prev.findings;
@@ -212,7 +221,12 @@ export const App: React.FC = () => {
         const updatedImpression = !inFindings
           ? prev.impression.map((s) =>
               s.id === warning.targetSentenceId
-                ? { ...s, text: warning.suggestedFix!, isEdited: true }
+                ? {
+                    ...s,
+                    originalText: s.originalText || s.text,
+                    text: warning.suggestedFix!,
+                    isEdited: true,
+                  }
                 : s
             )
           : prev.impression;
@@ -231,6 +245,7 @@ export const App: React.FC = () => {
         if (warning.reportSpan && s.text.includes(warning.reportSpan)) {
           return {
             ...s,
+            originalText: s.originalText || s.text,
             text: warning.suggestedFix || s.text,
             isEdited: true,
           };
@@ -243,6 +258,36 @@ export const App: React.FC = () => {
       return {
         ...prev,
         impression: updatedImpression,
+        warnings: newWarnings,
+      };
+    });
+  };
+
+  const handleRevertSentence = (
+    section: 'findings' | 'impression',
+    sentenceId: string
+  ) => {
+    setReport((prev) => {
+      const list = prev[section];
+      const updated = list.map((s) => {
+        if (s.id === sentenceId && s.originalText) {
+          return {
+            ...s,
+            text: s.originalText,
+            isEdited: false,
+            originalText: undefined,
+          };
+        }
+        return s;
+      });
+
+      const updatedFindings = section === 'findings' ? updated : prev.findings;
+      const updatedImpression = section === 'impression' ? updated : prev.impression;
+      const newWarnings = validateReport(dictation, updatedFindings, updatedImpression);
+
+      return {
+        ...prev,
+        [section]: updated,
         warnings: newWarnings,
       };
     });
