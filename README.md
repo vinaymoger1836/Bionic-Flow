@@ -89,6 +89,16 @@ To fulfill 5C Network's mandate to *"respect each radiologist’s preferred temp
 
 ---
 
+## 🔀 "Before vs. After" Revision Diff Inspector
+
+In a high-throughput network processing 20,000 scans daily, radiologists and QA reviewers require instant, visual verification of all report corrections before final sign-off:
+- **Automatic Word-Level Diffing**: Uses a Longest Common Subsequence (LCS) algorithm to render exact token-level deletions (`[-red strikethrough-]`) and insertions (`{+green text+}`).
+- **Interactive Revision Audit Bar**: Flags all modified sentences, showing exact counts of clinical revisions applied via automated safety fixes or manual doctor edits.
+- **1-Click Revert Option**: Every revised sentence features an inline **Revert** button to restore the original attestation instantly.
+- **Dual Viewing Modes**: Seamlessly toggle between **Clean Final View** (clean sign-ready text) and **Diff View** (audit comparison mode).
+
+---
+
 ## ⚡ Live LLM Mode with Groq (Open Source Models)
 
 Bionic Flow supports **Groq** for sub-300ms live LLM structured report generation using top open-source models:
