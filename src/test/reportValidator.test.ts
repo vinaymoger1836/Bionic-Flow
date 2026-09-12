@@ -196,4 +196,22 @@ describe('Bionic Flow Clinical Safety Engine', () => {
     expect(ventricleSentence?.text).toBe(customNormalText);
     expect(ventricleSentence?.source).toBe('template');
   });
+
+  it('Revision Diff Inspector: accurately extracts additions and removals for Case 3 corrections', () => {
+    const originalText = 'Right renal lesion measuring 14 centimetres with hydronephrosis.';
+    const revisedText = 'Left renal lesion measuring 14 millimetre no hydronephrosis.';
+
+    const diff = computeWordDiff(originalText, revisedText);
+
+    const removals = diff.filter((d) => d.type === 'removed').map((d) => d.value.trim().toLowerCase());
+    const additions = diff.filter((d) => d.type === 'added').map((d) => d.value.trim().toLowerCase());
+
+    expect(removals.some((r) => r.includes('right'))).toBe(true);
+    expect(removals.some((r) => r.includes('centimetres'))).toBe(true);
+    expect(removals.some((r) => r.includes('with'))).toBe(true);
+
+    expect(additions.some((a) => a.includes('left'))).toBe(true);
+    expect(additions.some((a) => a.includes('millimetre'))).toBe(true);
+    expect(additions.some((a) => a.includes('no'))).toBe(true);
+  });
 });
