@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type {
   StructuredReport,
   ReportSentence,
-  ProvenanceSource,
   ValidationWarning,
 } from '../types/report';
 import {
