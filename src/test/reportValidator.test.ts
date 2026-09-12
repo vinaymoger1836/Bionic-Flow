@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { generateStructuredReport } from '../engine/reportGenerator';
 import { validateReport } from '../engine/reportValidator';
 import { detectCriticalFinding } from '../engine/criticalAlerts';
+import { computeWordDiff } from '../engine/diffHelper';
 import { TEST_CASE_PRESETS } from '../engine/presets';
 import type { ReportSentence } from '../types/report';
 
