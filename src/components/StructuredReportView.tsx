@@ -12,8 +12,12 @@ import {
   Edit2,
   Download,
   MapPin,
+  GitCompare,
+  GitCommit,
+  RotateCcw,
 } from 'lucide-react';
 import { CriticalAlertBanner } from './CriticalAlertBanner';
+import { computeWordDiff } from '../engine/diffHelper';
 
 interface StructuredReportViewProps {
   report: StructuredReport;
@@ -34,6 +38,7 @@ interface StructuredReportViewProps {
     contactMethod: string;
     timestamp: string;
   }) => void;
+  onRevertSentence?: (section: 'findings' | 'impression', sentenceId: string) => void;
 }
 
 export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
@@ -46,10 +51,17 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
   onHoverSentence,
   onSelectSentence,
   onDocumentCriticalAlert,
+  onRevertSentence,
 }) => {
   const [copied, setCopied] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState('');
+  const [showDiff, setShowDiff] = useState(true);
+
+  const editedSentences = [...report.findings, ...report.impression].filter(
+    (s) => s.isEdited && s.originalText
+  );
+  const totalEdits = editedSentences.length;
 
   const handleCopyAll = () => {
     const findingsText = report.findings.map((f) => f.text).join(' ');
@@ -80,36 +92,48 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
     setEditBuffer('');
   };
 
-  const getProvenanceBadge = (source: ProvenanceSource) => {
+  const getProvenanceBadge = (sentence: ReportSentence) => {
+    const source = sentence.source;
+    let badgeClass = '';
+    let label = '';
+    let title = '';
+
     switch (source) {
       case 'dictation':
-        return (
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 select-none"
-            title="Transcribed directly from radiologist dictation"
-          >
-            Dictation
-          </span>
-        );
+        badgeClass = 'bg-cyan-950/80 text-cyan-300 border-cyan-800/80';
+        label = 'Dictation';
+        title = 'Transcribed directly from radiologist dictation';
+        break;
       case 'template':
-        return (
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 select-none"
-            title="Sourced from standard normal baseline template"
-          >
-            Template
-          </span>
-        );
+        badgeClass = 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80';
+        label = 'Template';
+        title = 'Sourced from standard normal baseline template';
+        break;
       case 'system_inference':
-        return (
-          <span
-            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/80 text-purple-300 border border-purple-800/80 select-none"
-            title="Synthesized by AI / System clinical inference"
-          >
-            System Inference
-          </span>
-        );
+        badgeClass = 'bg-purple-950/80 text-purple-300 border-purple-800/80';
+        label = 'System Inference';
+        title = 'Synthesized by AI / System clinical inference';
+        break;
     }
+
+    return (
+      <div className="flex items-center space-x-1 select-none">
+        <span
+          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${badgeClass}`}
+          title={title}
+        >
+          {label}
+        </span>
+        {sentence.isEdited && (
+          <span
+            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-950/90 text-amber-300 border border-amber-800/80"
+            title={sentence.originalText ? `Original: "${sentence.originalText}"` : 'Modified'}
+          >
+            Revised
+          </span>
+        )}
+      </div>
+    );
   };
 
   const isSentenceWarned = (sentenceId: string) => {
@@ -126,14 +150,89 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
     return false;
   };
 
+  const renderSentenceBody = (sentence: ReportSentence) => {
+    if (sentence.isEdited && sentence.originalText && showDiff) {
+      const diffTokens = computeWordDiff(sentence.originalText, sentence.text);
+      return (
+        <div className="space-y-1 w-full">
+          <div className="flex items-center justify-between text-[10px] text-amber-400 font-mono pb-1 border-b border-slate-800/60 select-none">
+            <span className="flex items-center space-x-1">
+              <GitCommit className="w-3 h-3 text-amber-400" />
+              <span>REVISED ATTESTATION</span>
+            </span>
+            {onRevertSentence && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRevertSentence(sentence.section, sentence.id);
+                }}
+                className="text-slate-400 hover:text-rose-300 flex items-center space-x-1 cursor-pointer transition"
+                title="Revert sentence to original text"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>Revert</span>
+              </button>
+            )}
+          </div>
+          <div className="text-xs leading-relaxed break-words">
+            {diffTokens.map((token, tIdx) => {
+              if (token.type === 'removed') {
+                return (
+                  <del
+                    key={tIdx}
+                    className="bg-rose-950/80 text-rose-300 line-through px-1 py-0.5 rounded border border-rose-800/80 mx-0.5 inline-block select-text"
+                  >
+                    {token.value}
+                  </del>
+                );
+              }
+              if (token.type === 'added') {
+                return (
+                  <ins
+                    key={tIdx}
+                    className="bg-emerald-950/80 text-emerald-300 font-semibold px-1 py-0.5 rounded border border-emerald-800/80 mx-0.5 no-underline inline-block select-text"
+                  >
+                    {token.value}
+                  </ins>
+                );
+              }
+              return <span key={tIdx} className="text-slate-200">{token.value}</span>;
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <p className="text-xs text-slate-200 leading-relaxed m-0 flex-1">
+        {sentence.text}
+      </p>
+    );
+  };
+
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col h-full overflow-hidden shadow-lg shadow-black/40">
       {/* Header */}
       <div className="px-4 py-3 border-b border-slate-800 bg-slate-950/60 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <FileText className="w-4 h-4 text-cyan-400" />
-          <span className="text-sm font-semibold text-slate-100">Sign-Ready Structured Report</span>
+          <span className="text-sm font-semibold text-slate-100">Sign-Ready Report</span>
           <span className="text-[11px] text-slate-400 font-mono">({report.modality})</span>
+
+          {totalEdits > 0 && (
+            <button
+              onClick={() => setShowDiff(!showDiff)}
+              className={`flex items-center space-x-1 px-2 py-0.5 rounded text-[11px] transition cursor-pointer ml-1 font-medium ${
+                showDiff
+                  ? 'bg-amber-950/80 text-amber-300 border border-amber-600 shadow-sm'
+                  : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+              }`}
+              title="Toggle Before vs After Revision Diff"
+            >
+              <GitCompare className="w-3 h-3 text-amber-400" />
+              <span>{showDiff ? 'Diff View' : `Diff (${totalEdits})`}</span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center space-x-2">
@@ -158,7 +257,30 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
       </div>
 
       {/* Report Content */}
-      <div className="p-4 flex-1 overflow-y-auto space-y-6">
+      <div className="p-4 flex-1 overflow-y-auto space-y-5">
+        {/* Revision Audit Notification Banner */}
+        {totalEdits > 0 && (
+          <div className="p-2.5 rounded-lg bg-amber-950/30 border border-amber-800/70 text-xs text-amber-200 flex items-center justify-between shadow-sm">
+            <div className="flex items-center space-x-2">
+              <GitCompare className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <div>
+                <span className="font-semibold text-amber-100">
+                  {totalEdits} Clinical Revision{totalEdits > 1 ? 's' : ''} Documented
+                </span>
+                <span className="text-[10px] text-amber-300/80 block">
+                  Revisions applied against initial draft. All modifications tracked for medicolegal compliance.
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowDiff(!showDiff)}
+              className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-900/60 hover:bg-amber-800 border border-amber-700 text-amber-200 transition cursor-pointer flex-shrink-0 ml-2"
+            >
+              {showDiff ? 'Clean Final View' : 'Inspect Inline Diff'}
+            </button>
+          </div>
+        )}
+
         {/* Section 1: FINDINGS */}
         <div>
           <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
@@ -188,6 +310,8 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                       ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-md shadow-cyan-950 ring-1 ring-cyan-400/60'
                       : hasWarning
                       ? 'bg-amber-950/20 border-amber-800/80 shadow-sm'
+                      : sentence.isEdited
+                      ? 'bg-slate-950/60 border-amber-900/60 hover:border-amber-700/80'
                       : 'bg-slate-950/40 hover:bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
                   }`}
                 >
@@ -218,11 +342,11 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                       </div>
                     ) : (
                       <>
-                        <p className="text-xs text-slate-200 leading-relaxed m-0 flex-1">
-                          {sentence.text}
-                        </p>
+                        <div className="flex-1">
+                          {renderSentenceBody(sentence)}
+                        </div>
 
-                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                        <div className="flex items-center space-x-1.5 flex-shrink-0 self-start mt-0.5">
                           {sentence.groundingSpan && (
                             <span
                               className={`inline-flex items-center space-x-0.5 text-[9px] px-1 py-0.5 rounded font-mono transition select-none ${
@@ -237,7 +361,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                             </span>
                           )}
 
-                          {getProvenanceBadge(sentence.source)}
+                          {getProvenanceBadge(sentence)}
 
                           <button
                             onClick={(e) => startEdit(sentence, e)}
@@ -295,6 +419,8 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                       ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-md shadow-cyan-950 ring-1 ring-cyan-400/60'
                       : hasWarning
                       ? 'bg-red-950/20 border-red-800 shadow-sm shadow-red-950/50'
+                      : sentence.isEdited
+                      ? 'bg-slate-950/60 border-amber-900/60 hover:border-amber-700/80'
                       : 'bg-slate-950/40 hover:bg-slate-950/80 border-slate-800/80 hover:border-slate-700'
                   }`}
                 >
@@ -326,15 +452,15 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                     ) : (
                       <>
                         <div className="flex items-start space-x-2 flex-1">
-                          <span className="text-cyan-400 font-bold text-xs mt-0.5">
+                          <span className="text-cyan-400 font-bold text-xs mt-0.5 select-none">
                             {idx + 1}.
                           </span>
-                          <p className="text-xs font-medium text-slate-100 leading-relaxed m-0">
-                            {sentence.text}
-                          </p>
+                          <div className="flex-1">
+                            {renderSentenceBody(sentence)}
+                          </div>
                         </div>
 
-                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                        <div className="flex items-center space-x-1.5 flex-shrink-0 self-start mt-0.5">
                           {sentence.groundingSpan && (
                             <span
                               className={`inline-flex items-center space-x-0.5 text-[9px] px-1 py-0.5 rounded font-mono transition select-none ${
@@ -349,7 +475,7 @@ export const StructuredReportView: React.FC<StructuredReportViewProps> = ({
                             </span>
                           )}
 
-                          {getProvenanceBadge(sentence.source)}
+                          {getProvenanceBadge(sentence)}
 
                           <button
                             onClick={(e) => startEdit(sentence, e)}
