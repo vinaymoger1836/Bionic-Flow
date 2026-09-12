@@ -395,6 +395,7 @@ export const App: React.FC = () => {
               onHoverSentence={handleHoverSentence}
               onSelectSentence={handleSelectSentence}
               onDocumentCriticalAlert={handleDocumentCriticalAlert}
+              onRevertSentence={handleRevertSentence}
             />
           </div>
 
